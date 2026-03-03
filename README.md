@@ -114,7 +114,7 @@ python >= 3.9
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/volume-prediction-engine.git
+git clone https://github.com/AdithSrinivasan/volume-prediction-engine.git
 cd volume-prediction-engine
 pip install -r requirements.txt
 ```
