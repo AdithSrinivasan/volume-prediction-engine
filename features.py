@@ -135,7 +135,6 @@ def build_features(
     output_paths: list[Path] = []
     for exchange, exchange_df in df.groupby("Exchange", sort=True):
         features = _build_exchange_features(exchange_df.copy())
-        features["exchange"] = exchange
         output_path = output_dir / f"BTC-USDT_features_{_sanitize_exchange(str(exchange))}_{FREQ}.parquet"
         features.to_parquet(output_path)
         output_paths.append(output_path)
