@@ -229,28 +229,33 @@ final_model.fit(X_tv, y_tv, callbacks=[lgb.log_evaluation(-1)])
 pred_log_te = final_model.predict(X_te)
 pred_raw_te = np.expm1(pred_log_te)
 
-test_r2   = r2_score(yr_te, pred_raw_te)
-test_rmse = np.sqrt(mean_squared_error(yr_te, pred_raw_te))
-test_mae  = mean_absolute_error(yr_te, pred_raw_te)
-test_mape = float(np.mean(np.abs((yr_te - pred_raw_te) / (yr_te + 1e-8))) * 100)
+pred_log_tv = final_model.predict(X_tv)
+pred_raw_tv = np.expm1(pred_log_tv)
 
-# Directional accuracy: did model correctly predict whether volume rises vs falls?
-# Compare predicted t+1 direction vs current t volume (lag_volume_1 col = volume at t)
-# Column 0 in feature matrix is 'volume' (current period) — use it as baseline.
-vol_current_te = X_te[:, FEATURE_COLS.index("volume")]
-dir_acc = float(np.mean(
-    np.sign(pred_raw_te - vol_current_te) == np.sign(yr_te - vol_current_te)
-))
+vol_idx = FEATURE_COLS.index("volume")   # current-period volume column
 
-print(f"\n{'═'*40}")
-print(f"  Test-set Results")
-print(f"{'─'*40}")
-print(f"  R²              : {test_r2:.4f}")
-print(f"  RMSE            : {test_rmse:,.2f}")
-print(f"  MAE             : {test_mae:,.2f}")
-print(f"  MAPE            : {test_mape:.2f} %")
-print(f"  Directional Acc : {dir_acc:.4f}")
-print(f"{'═'*40}")
+def metrics(yr_true, yr_pred, X_cur):
+    r2   = r2_score(yr_true, yr_pred)
+    rmse = np.sqrt(mean_squared_error(yr_true, yr_pred))
+    mae  = mean_absolute_error(yr_true, yr_pred)
+    mape = float(np.mean(np.abs((yr_true - yr_pred) / (yr_true + 1e-8))) * 100)
+    vol_cur = X_cur[:, vol_idx]
+    dacc = float(np.mean(
+        np.sign(yr_pred - vol_cur) == np.sign(yr_true - vol_cur)
+    ))
+    return dict(R2=r2, RMSE=rmse, MAE=mae, MAPE=mape, DirAcc=dacc)
+
+tv_met = metrics(yr_tv, pred_raw_tv, X_tv)
+te_met = metrics(yr_te, pred_raw_te, X_te)
+
+print(f"\n{'═'*58}")
+print(f"  {'Metric':<16}{'Train/Val':>18}{'Test':>18}")
+print(f"{'─'*58}")
+for k in ("R2", "RMSE", "MAE", "MAPE", "DirAcc"):
+    fmt = ".4f" if k in ("R2", "DirAcc") else ",.2f" if k != "MAPE" else ".2f"
+    unit = " %" if k == "MAPE" else ""
+    print(f"  {k:<16}{tv_met[k]:>17{fmt}}{unit}  {te_met[k]:>15{fmt}}{unit}")
+print(f"{'═'*58}")
 
 
 # ── 6. Plots ───────────────────────────────────────────────────────────────────
@@ -270,7 +275,8 @@ ax_ts.yaxis.set_major_formatter(fmt_k)
 ax_ts.legend(loc="upper right")
 ax_ts.grid(True, alpha=0.4)
 ax_ts.text(0.02, 0.95,
-    f"R²={test_r2:.3f}   RMSE={test_rmse:,.0f}   MAPE={test_mape:.1f}%   DirAcc={dir_acc:.3f}",
+    f"R²={te_met['R2']:.3f}   RMSE={te_met['RMSE']:,.0f}"
+    f"   MAPE={te_met['MAPE']:.1f}%   DirAcc={te_met['DirAcc']:.3f}",
     transform=ax_ts.transAxes, fontsize=9, color=TEXT_COLOR,
     bbox=dict(boxstyle="round,pad=0.3", facecolor=DARK_BG, alpha=0.7))
 
@@ -412,5 +418,80 @@ fig4.tight_layout()
 fig4.savefig("optuna_results.png", dpi=150, bbox_inches="tight")
 print("Saved: optuna_results.png")
 plt.close(fig4)
+
+# ── Fig 5: Train/Val overview (mirrors Fig 1 structure) ───────────────────────
+residuals_tv = yr_tv - pred_raw_tv
+
+fig5 = plt.figure(figsize=(18, 11))
+fig5.patch.set_facecolor(DARK_BG)
+gs5 = gridspec.GridSpec(2, 3, figure=fig5, hspace=0.45, wspace=0.35)
+
+# A — Time-series
+ax5_ts = fig5.add_subplot(gs5[0, :])
+ax5_ts.plot(ts_tv, yr_tv,       color=C["blue"],   lw=0.7, label="Actual",    alpha=0.9)
+ax5_ts.plot(ts_tv, pred_raw_tv, color=C["orange"], lw=0.7, label="Predicted", alpha=0.85)
+ax5_ts.set_title("Train/Val Set — Actual vs Predicted Volume (t+1)", fontsize=12, fontweight="bold")
+ax5_ts.set_ylabel("Volume (BTC)")
+ax5_ts.yaxis.set_major_formatter(fmt_k)
+ax5_ts.legend(loc="upper right")
+ax5_ts.grid(True, alpha=0.4)
+ax5_ts.text(0.02, 0.95,
+    f"R²={tv_met['R2']:.3f}   RMSE={tv_met['RMSE']:,.0f}"
+    f"   MAPE={tv_met['MAPE']:.1f}%   DirAcc={tv_met['DirAcc']:.3f}",
+    transform=ax5_ts.transAxes, fontsize=9, color=TEXT_COLOR,
+    bbox=dict(boxstyle="round,pad=0.3", facecolor=DARK_BG, alpha=0.7))
+
+# B — Scatter
+ax5_sc = fig5.add_subplot(gs5[1, 0])
+ax5_sc.scatter(yr_tv, pred_raw_tv, s=4, alpha=0.3, color=C["blue"])
+lo5 = min(yr_tv.min(), pred_raw_tv.min())
+hi5 = max(yr_tv.max(), pred_raw_tv.max())
+ax5_sc.plot([lo5, hi5], [lo5, hi5], "--", color=C["orange"], lw=1.5, label="Perfect fit")
+ax5_sc.set_xlabel("Actual Volume")
+ax5_sc.set_ylabel("Predicted Volume")
+ax5_sc.set_title("Actual vs Predicted (Scatter)", fontsize=10, fontweight="bold")
+ax5_sc.xaxis.set_major_formatter(fmt_k)
+ax5_sc.yaxis.set_major_formatter(fmt_k)
+ax5_sc.legend(fontsize=8)
+ax5_sc.grid(True, alpha=0.4)
+
+# C — Residual distribution
+ax5_rd = fig5.add_subplot(gs5[1, 1])
+ax5_rd.hist(residuals_tv, bins=60, color=C["blue"], alpha=0.8, edgecolor="none")
+ax5_rd.axvline(0, color=C["orange"], lw=1.5, linestyle="--")
+ax5_rd.set_xlabel("Residual  (Actual − Predicted)")
+ax5_rd.set_ylabel("Count")
+ax5_rd.set_title("Residual Distribution", fontsize=10, fontweight="bold")
+ax5_rd.xaxis.set_major_formatter(fmt_k)
+ax5_rd.grid(True, alpha=0.4)
+ax5_rd.text(0.97, 0.95,
+    f"μ = {residuals_tv.mean():,.0f}\nσ = {residuals_tv.std():,.0f}",
+    transform=ax5_rd.transAxes, fontsize=8, ha="right", va="top", color=TEXT_COLOR,
+    bbox=dict(boxstyle="round,pad=0.3", facecolor=DARK_BG, alpha=0.7))
+
+# D — Train/Val vs Test metric comparison (grouped bars)
+ax5_cmp = fig5.add_subplot(gs5[1, 2])
+metric_labels = ["R²", "MAPE %", "DirAcc"]
+tv_vals = [tv_met["R2"], tv_met["MAPE"] / 100, tv_met["DirAcc"]]
+te_vals = [te_met["R2"], te_met["MAPE"] / 100, te_met["DirAcc"]]
+x5 = np.arange(len(metric_labels))
+w5 = 0.35
+ax5_cmp.bar(x5 - w5 / 2, tv_vals, width=w5, color=C["blue"],   alpha=0.85, label="Train/Val")
+ax5_cmp.bar(x5 + w5 / 2, te_vals, width=w5, color=C["orange"], alpha=0.85, label="Test")
+ax5_cmp.set_xticks(x5)
+ax5_cmp.set_xticklabels(metric_labels)
+ax5_cmp.axhline(0, color=TEXT_COLOR, lw=0.5, alpha=0.4)
+ax5_cmp.set_title("Train/Val vs Test Metrics", fontsize=10, fontweight="bold")
+ax5_cmp.legend(fontsize=8)
+ax5_cmp.grid(True, alpha=0.4, axis="y")
+for xi, (tv, te) in zip(x5, zip(tv_vals, te_vals)):
+    ax5_cmp.text(xi - w5 / 2, tv + 0.01, f"{tv:.2f}", ha="center", fontsize=7)
+    ax5_cmp.text(xi + w5 / 2, te + 0.01, f"{te:.2f}", ha="center", fontsize=7)
+
+fig5.suptitle("BTC-USDT 15-min Volume Prediction — Train/Val Set",
+              fontsize=14, fontweight="bold", y=0.99)
+fig5.savefig("trainval_overview.png", dpi=150, bbox_inches="tight")
+print("Saved: trainval_overview.png")
+plt.close(fig5)
 
 print("\nAll done.")
