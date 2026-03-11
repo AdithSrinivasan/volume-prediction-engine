@@ -35,47 +35,6 @@ This project was developed as part of FINM 33160 Machine Learning in Finance.
 
 ---
 
-## Project Structure
-
-```
-volume-prediction-engine/
-│
-├── data/
-│   ├── raw/                  # Raw OHLCV data
-│   ├── processed/            # Cleaned & feature-engineered data
-│   └── splits/               # Train/val/test splits by cap tier
-│
-├── features/
-│   ├── feature_engineering.py
-│   └── feature_selection.py
-│
-├── models/
-│   ├── decision_tree.py
-│   ├── random_forest.py
-│   ├── adaboost.py
-│   ├── lightgbm_model.py
-│   ├── xgboost_model.py
-│   └── neural_network.py
-│
-├── evaluation/
-│   ├── metrics.py            # MAE, RMSE, MAPE, R²
-│   └── comparison.py         # Cross-model benchmarking
-│
-├── notebooks/
-│   ├── 01_eda.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   ├── 03_model_training.ipynb
-│   └── 04_results_analysis.ipynb
-│
-├── results/
-│   └── model_comparison.csv
-│
-├── requirements.txt
-└── README.md
-```
-
----
-
 ## Features
 
 Feature engineering draws on standard equity market signals:
