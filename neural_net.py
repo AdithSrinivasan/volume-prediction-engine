@@ -33,7 +33,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 torch.set_num_threads(4)
 
 # ── constants ──────────────────────────────────────────────────────────────────
-DATA_PATH    = "BTC-USDT_features_15min.parquet"
+DATA_PATH    = "features_by_exchange/BTC-USDT_features_BINANCE_15min.parquet"
 TEST_FRAC    = 0.10
 N_SPLITS     = 5
 N_TRIALS     = 50
