@@ -28,10 +28,10 @@ This project was developed as part of FINM 33160 Machine Learning in Finance.
 ## Market Cap Tiers
 
 | Tier | Definition (approx.) |
-|---|---|
-| Small Cap | < $2B market cap |
-| Mid Cap | $2B – $10B market cap |
-| Large Cap | > $10B market cap |
+|---|--------------------|
+| Small Cap | < 2B market cap    |
+| Mid Cap | 2B – 10B market cap |
+| Large Cap | > $10B market cap  |
 
 ---
 
